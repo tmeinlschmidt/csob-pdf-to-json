@@ -9,7 +9,7 @@ Na popud Michala Blahy (https://twitter.com/michalblaha/status/86122780120629248
 
 ## Prevod pdf do textu
 
-`pdftotext -table -nopgbrk -enc UTF-8 ./vypis.pdf ./pdf.txt`
+`pdftotext -table -clip -nopgbrk -enc UTF-8 ./vypis.pdf ./pdf.txt`
 
 ## Prevod textu do json
 

@@ -1,8 +1,10 @@
-#!/bin/ruby
+#!/usr/bin/env ruby
 
 require 'json'
+require 'securerandom'
 
 class Entry
+  attr_reader :bank_account
   attr_reader :date
   attr_reader :payment
   attr_reader :payer
@@ -14,7 +16,8 @@ class Entry
   attr_reader :ss
   attr_reader :note
 
-  def initialize(row)
+  def initialize(bank_account, row)
+    @bank_account = bank_account
     @row = row
   end
   
@@ -34,16 +37,18 @@ class Entry
 
   def to_json
     {
-      date: @date,
-      payment: @payment,
-      payer: @payer,
-      row_no: @row_no,
-      amount: @amount,
-      account: @account,
-      vs: @vs,
-      ks: @ks,
-      ss: @ss,
-      note: @note
+      'Id' => SecureRandom.uuid,
+      'CisloUctu' => @bank_account,
+      'Datum' => @date,
+      'PopisTransakce' => @payment,
+      'NazevProtiuctu' => @payer,
+      'CisloProtiuctu' => @account,
+      'ZpravaProPrijemce' => @note,
+      'VS' => @vs,
+      'KS' => @ks,
+      'SS' => @ss,
+      'Castka' => @amount,
+      'AddId' => @row_no
     }
   end
 
@@ -78,15 +83,18 @@ class Entry
   end
 
   def parse_notes
-    @note = preparse(@notes) if @notes
+    @note = @notes
+    #@note = preparse(@notes) if @notes
   end
 
   def preparse(row)
+    return unless row
     row.gsub(/\A[ \t]*/, '').gsub(/[ ]{3,}/, ';').chomp
   end
 
   def heal(string)
-    string.gsub(/[ ]*/, '').gsub(',', '.')
+    return unless string
+    string.gsub(/[^0-9.,-]*/, '').gsub(',', '.')
   end
 end
 
@@ -100,17 +108,29 @@ data = []
 data_entries = []
 
 file.each_with_index do |line, i|
+  if !@cislo_uctu && line =~ /\A(Číslo účtu|Účet|Císlo úctu):[ \t]*([0-9-]*\/[0-9]{4})/
+    @cislo_uctu = $2
+    STDERR.puts "Cislo uctu #{@cislo_uctu}\n"
+  end
   next unless line =~ /\A[ ]*[0-9]{2}\.[0-9]{2}\.[ ]{2}/
   data << i
 end
 
+STDERR.puts "Found data on lines #{data.map{|a| a+1}.join(',')}."
+
 # processing data
-data.each do |entry_line|
-  data_entry = Entry.new(file[entry_line])
+data.each_with_index do |entry_line, i|
+  endline = (i<data.size-1) ? data[i+1]-1 : file.size
+  block = file[entry_line..endline].reject{|l| l.gsub(/\A[ \t\n]*\Z/,'').empty? }.map{|l| l.gsub(/\A[ \t]*/, '').gsub(/[ ]{2,}/, ';').gsub(/([^;0-9.]);([^;0-9.])/,'\1 \2').chomp}
+  STDERR.puts "1: '#{block[0]}'"
+  STDERR.puts "2: '#{block[1]}'"
+  STDERR.puts "3: '#{block[2]}'"
+  STDERR.puts "-" * 80
+  data_entry = Entry.new(@cislo_uctu, block[0])
   # no additional data, skip to next
-  if file[entry_line+1] != ''
-    data_entry.account_details(file[entry_line+1])
-    data_entry.notes(file[entry_line+2])
+  if block.size > 1
+    data_entry.account_details(block[1])
+    data_entry.notes(block[2])
   end
   data_entries << data_entry
 end
