@@ -64,13 +64,13 @@ class Entry
     i += 1
     @payment = parsed[i]
     i += 1
-    if parsed.count == 5
+    if parsed.count == 5 
       @payer = parsed[i]
       i += 1
     end
-    @row_no = parsed[i].to_i
-    i += 1
-    @amount = heal(parsed[i]).to_f
+    max = parsed.size
+    @row_no = parsed[max-2].to_i
+    @amount = heal(parsed[max-1]).to_f
   end
 
   def parse_account
